@@ -1,0 +1,21 @@
+{
+    "config": {
+        "prefix": ">",
+        "balance": 0,
+        "inc_balance": 500,
+        "currency": "$",
+        "bank_balance": 0,
+        "bank_limit": 200,
+        "inc_ad": 1,
+        "inc_building": 1,
+        "skill_hack": 1,
+        "skill_protect": 1,
+        "business_price": 1000,
+        "ad_price": 250,
+        "building_price": 1000,
+        "inc_stocks": 0,
+        "inc_workers": "0",
+        "inc_max_stocks": 20,
+        "inc_stock_percent": 2
+    }
+}
