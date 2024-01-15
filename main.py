@@ -16,7 +16,7 @@ db_path = Path(f'{CONFIG_NAME}.json')
 if not db_path.exists():
     print('Файл конфига не обнаружен!')
     ed.create_database(CONFIG_NAME)
-    ed.give_id_data(CONFIG_NAME, 'config', {'prefix': '>', 'balance': 0, 'inc_balance': 500, 'currency': '$', 'bank_balance': 0, 'bank_limit': 200, 'inc_ad': 1, 'inc_building': 1, 'skill_hack': 1, 'skill_protect': 1, 'business_price': 1000, 'ad_price': 250, 'building_price': 1000, 'inc_stocks': 0, 'inc_workers': '0', 'inc_max_stocks': 20, 'inc_stock_percent': 2})
+    ed.give_id_data(CONFIG_NAME, 'config', {'prefix': '>', 'balance': 0, 'inc_balance': 500, 'currency': '$', 'bank_balance': 0, 'bank_limit': 200, 'inc_ad': 1, 'inc_building': 1, 'skill_hack': 1, 'skill_protect': 1, 'business_price': 1000, 'ad_price': 250, 'building_price': 1000, 'inc_stocks': 0, 'inc_workers': 0, 'inc_max_stocks': 20, 'inc_stock_percent': 2, 'inc_max_workers': 100})
 
 config = ed.get_id_data(CONFIG_NAME, 'config')
 
@@ -287,36 +287,40 @@ async def hack(message, *, content):
     await message.channel.send(embed = embed1)
 
 @client.command()
-async def set_work(message, *, content): #обновить
-    id_user = str(message.author.id)
-
-    work = getData(WORK_FILE, id_user) or 'None'
-    business = getData(BUSINESS_NAME_FILE, id_user) or 'None'
-    workers = getData(BUSINESS_WORKERS_FILE, content.replace(' ', '_'))
-    print(f'-------------------------------------------------------------------------------------------{workers}')
-    businesses = readData(BUSINESS_NAME_FILE)
-
-    if work == 'None' and content.replace(' ', '_') + ' Inc.' in businesses and content != '_leave_' and business == 'None': #если нет в базе данных
-        addData(WORK_FILE, id_user, content.replace(' ', '_')) #добавляем
-        text = 'Вы успешно устроились на работу в компанию **' + content + ' Inc.**'
-        if workers:
-            updateData(BUSINESS_WORKERS_FILE, content.replace(' ', '_'), int(workers) + 1)
-
-    elif work == 'Free' and content.replace(' ', '_') + ' Inc.' in businesses and content != '_leave_' and business == 'None': #если есть в базе данных, но без работы
-        updateData(WORK_FILE, id_user, content.replace(' ', '_')) #обновляем
-        text = 'Вы успешно устроились на работу в компанию **' + content + ' Inc.**'
-        if workers:
-            updateData(BUSINESS_WORKERS_FILE, content.replace(' ', '_'), int(workers) + 1) #добавляем единицу
+async def set_work(message, *, content):
+    user_id = str(message.author.id)
+    
+    if not ed.is_item_exist(DB_NAME, user_id, 'work'):
+        work = ed.give_item_data(DB_NAME, user_id, 'work', 'Отсутствует')
+    work = ed.get_item_data(DB_NAME, user_id, 'work')
+    
+    if not ed.is_item_exist(DB_NAME, user_id, 'business'):
+        business = ed.give_item_data(DB_NAME, user_id, 'business', 'Отсутствует')
+    business = ed.get_item_data(DB_NAME, user_id, 'business')
+    
+    if ed.is_item_exist(DB_NAME, content, 'grafic') and content != 'увольняюсь' and business == 'Отсутствует':
+        inc_workers = ed.get_item_data(DB_NAME, content, 'workers')
         
-    elif work != 'None' and work != 'Free' and content == '_leave_' and business == 'None':
-        work = getData(WORK_FILE, id_user)
-        workers = getData(BUSINESS_WORKERS_FILE, work)
-        updateData(WORK_FILE, id_user, 'Free') #обновляем
-        text = 'Вы успешно уволились из компании **' + work.replace('_', ' ') + ' Inc.**'
-        updateData(BUSINESS_WORKERS_FILE, work, int(workers) - 1) #добавляем единицу
-
+        inc_max_workers = ed.get_item_data(DB_NAME, content, 'max_workers')
+        
+        if int(inc_max_workers) - int(inc_workers) > 0:
+            
+            ed.give_item_data(DB_NAME, user_id, 'work', content)
+            
+            text = f'<a:yes:998468643627212860> **Успешное трудоустройство** на работу в {content}'
+        
+        else:
+            
+            text = '<:error:1001754203565326346> Свободные места отсутствуют'
+        
+    elif content == 'увольняюсь' and work != 'Отсутствует':
+        
+        ed.give_item_data(DB_NAME, user_id, 'work', 'Отсутствует')
+        
+        text = f'<a:yes:998468643627212860> **Успешное увольнение** из {work}'
+        
     else:
-        text = f'<:error:1001754203565326346> Ошибка взаимодействия\nВозможные причины:\n- Данного бизнеса/параметра не существует\n- Вы уже где то работаете\n- У вас есть свой бизнес'
+        text = f'<a:no:998468646533869658> Ошибка взаимодействия\nВозможные причины:\n- Данного бизнеса/параметра не существует\n- У вас есть свой бизнес\n- Вы и так нигде не работаете'
 
     embed1 = discord.Embed(
     title = 'Работа',
@@ -406,7 +410,9 @@ async def inc_create(message, *, content):
     if int(balance) >= business_price and not ed.is_id_exist(DB_NAME, content) and content != None and business == 'Отсутствует':
         sub = int(balance) - business_price
 
-        inc_name = ed.give_item_data(DB_NAME, user_id, 'business', content)
+        if content != 'Отсутствует':
+            inc_name = ed.give_item_data(DB_NAME, user_id, 'business', content)
+            
         inc_ad = ed.give_item_data(DB_NAME, content, 'ad', config['inc_ad'])
         inc_building = ed.give_item_data(DB_NAME, content, 'building', config['inc_building'])
         inc_grafic = ed.give_item_data(DB_NAME, content, 'grafic', '🔺')
@@ -415,6 +421,7 @@ async def inc_create(message, *, content):
         inc_stocks = ed.give_item_data(DB_NAME, content, 'stocks', config['inc_stocks'])
         inc_max_stocks = ed.give_item_data(DB_NAME, content, 'max_stocks', config['inc_max_stocks'])
         inc_stock_percent = ed.give_item_data(DB_NAME, content, 'stock_percent', config['inc_stock_percent'])
+        inc_max_workers = ed.give_item_data(DB_NAME, content, 'max_workers', config['inc_max_workers'])
 
         stock_price = ed.give_item_data(DB_NAME, content, 'stock_price', int(str(int(inc_balance) / 100 * 2).split('.')[0]))
 
@@ -507,10 +514,11 @@ async def inc_info(message):
         inc_stocks = ed.get_item_data(DB_NAME, business, 'stocks')
         inc_max_stocks = ed.get_item_data(DB_NAME, business, 'max_stocks')
         inc_stock_percent = ed.get_item_data(DB_NAME, business, 'stock_percent')
+        inc_max_workers = ed.get_item_data(DB_NAME, business, 'max_workers')
 
         stock_price = int(str(int(inc_balance) / 100 * 2).split('.')[0])
 
-        text = f'📌Название: **{business}**\n📨Уровень рекламы: **{inc_ad}**\n🏢Количество зданий: **{inc_building}**\n💸Бюджет: {currency}**{inc_balance}**\n📊Цена акции: {currency}**{stock_price}**{inc_grafic}\n🧷Процент акции: **{inc_stock_percent}%**\n📈Продано акций: **{inc_stocks}/{inc_max_stocks}**\n👤Сотрудников: {inc_workers}'
+        text = f'📌Название: **{business}**\n📨Уровень рекламы: **{inc_ad}**\n🏢Количество зданий: **{inc_building}**\n💸Бюджет: {currency}**{inc_balance}**\n📊Цена акции: {currency}**{stock_price}**{inc_grafic}\n🧷Процент акции: **{inc_stock_percent}%**\n📈Продано акций: **{inc_stocks}/{inc_max_stocks}**\n👤Сотрудников: {inc_workers}/{inc_max_workers}'
     
     embed1 = discord.Embed(
     title = 'Предприятие',
@@ -612,7 +620,7 @@ async def inc_withdraw(message, *, content):
     await message.channel.send(embed = embed1)
 
 @client.command()
-async def inc_store(message, *, content = 'None'): #обновить
+async def inc_store(message, *, content = 'None'):
     user_id = str(message.author.id)
 
     content_split = content.split()
@@ -735,120 +743,103 @@ async def inc_store(message, *, content = 'None'): #обновить
     await message.channel.send(embed = embed1)
 
 @client.command()
-async def inc_stocks(message, *, content): #обновить
-    id_user = str(message.author.id)
+async def inc_stocks(message, *, content):
+    user_id = str(message.author.id)
 
-    print(f'------------------------{id_user}: >inc_stocks {content}')
+    if not ed.is_item_exist(DB_NAME, user_id, 'currency'):
+        currency = ed.give_item_data(DB_NAME, user_id, 'currency', config['currency'])
+    currency = ed.get_item_data(DB_NAME, user_id, 'currency')
+    
+    if not ed.is_item_exist(DB_NAME, user_id, 'inventory'):
+        inventory = ed.give_item_data(DB_NAME, user_id, 'inventory', {})
+    inventory = ed.get_item_data(DB_NAME, user_id, 'inventory')
+    
+    if not ed.is_item_exist(DB_NAME, user_id, 'balance'):
+        balance = ed.give_item_data(DB_NAME, user_id, 'balance', config['balance'])
+    balance = ed.get_item_data(DB_NAME, user_id, 'balance')
+    
+    if cooldown_check(user_id, f'inc_stocks {content}', 345600) != True:
+        wait = cooldown_check(user_id, f'inc_store sell {content}', 345600)
+        embed2 = discord.Embed(
+        title = '<a:no:998468646533869658> Пожалуйста, подождите',
+        description = f'Осталось ждать: {wait} секунд',
+        color = 0xffff00)
+        await message.channel.send(embed = embed2)
+        
+        return
+    
+    text = f'<a:no:998468646533869658> Данного бизнеса не существует'
 
-    cur = getData(CURRENCY_FILE, id_user) or '$'
-    if not cur: #проверяем наличие в базе данных, если нет - добавляем (сервер)
-        addData(CURRENCY_FILE, id_user, STARTING_CURRENCY)
+    if ed.is_item_exist(DB_NAME, content, 'grafic'):
+        inc_balance = ed.get_item_data(DB_NAME, content, 'balance')
+        inc_stock_percent = ed.get_item_data(DB_NAME, content, 'stock_percent')
+        inv_stocks = inventory[content] or 0
 
-    balance = getData(BALANCE_FILE, id_user) or 0
-    if not balance: #проверяем наличие в базе данных, если нет - добавляем
-        addData(BALANCE_FILE, id_user, STARTING_BALANCE)
+        price = int(inc_stock_percent) * int(inc_balance) // 1000 * int(inv_stocks)
 
-    name = content + ' Inc.'
+        sum = int(balance) + price
+        sub = int(inc_balance) - price
 
-    money = int(getData(BUSINESS_MONEY_FILE, name))
+        ed.give_item_data(DB_NAME, user_id, 'balance', sum)
+        ed.give_item_data(DB_NAME, content, 'balance', sub)
+        ed.give_item_data(DB_NAME, content, 'grafic', '🔻')
+        
+        cooldown_set(user_id, f'inc_stocks {content}')
 
-    stocksData = findDataMulti(INV_FILE, id_user, content) or '0 0'
-    stocksCount = int(stocksData.split()[0])
-
-    price = money / 200
-    price = int(str(price).split('.')[0])
-    price = price * stocksCount
-
-    sum = int(balance) + price
-    sub = money - price
-
-    updateData(BALANCE_FILE, id_user, sum ) #обновляем значение в базе
-    updateData(BUSINESS_MONEY_FILE, name, sub ) #обновляем значение в базе
-    updateData(BUSINESS_GRAF_FILE, name.replace(' Inc.', ''), '🔻')
-    text = f'**Успешная транзакция!**\n📤Отправитель: {name}\n📥Получатель: <@{id_user}>\n💸Сумма: {cur}**{price}**\n📄Комиссия: **0**%'
+        text = f'<a:yes:998468643627212860> **Успешная транзакция!**\n📤Отправитель: {content}\n📥Получатель: <@{user_id}>\n💸Сумма: {currency}**{price}**\n📄Комиссия: **0**%'
     
     embed1 = discord.Embed(
-    title = 'Предприятие',
+    title = 'Дивиденды',
     description = text,
     color = 0xffff00)
     await message.channel.send(embed = embed1)
 
 @client.command()
-async def inc_inv(message): #обновить
-    id_user = str(message.author.id)
+async def inventory(message):
+    user_id = str(message.author.id)
+    
+    text = ''
+    
+    if not ed.is_item_exist(DB_NAME, user_id, 'inventory'):
+        inventory = ed.give_item_data(DB_NAME, user_id, 'inventory', {})
+    inventory = ed.get_item_data(DB_NAME, user_id, 'inventory')
+    
+    for item in inventory:
+        text = text + f'{item}: {inventory[item]}'
 
-    print(f'------------------------{id_user}: >inc_inv')
-    inv = getData(INV_FILE, id_user).replace(';', '\n')
-    inv_split = inv.split('\n')
-    newText = ''
-    for x in inv_split:
-        if x != '':
-            x_split = x.split()
-            newData = x_split[0] + ' - ' + x_split[1].replace('_', ' ') + ' Inc.'
-            if newText == '':
-                newText = newData
-            else:
-                newText = newText + '\n' + newData
     embed1 = discord.Embed(
     title = 'Инвентарь',
-    description = newText,
+    description = text,
     color = 0xffff00)
     await message.channel.send(embed = embed1)
-
+    
 @client.command()
-async def cmd(message, *, content): #обновить
-    id_user = message.author.id
-    if id_user == 986313671661727744:
-        content_s = content.split('  ')
-        file = content_s[1] + '.json'
-        if content_s[0] == 'add':
-            addData(file, content_s[2], content_s[3])
-            await message.channel.send(f'Файл: {content_s[1]}\nАйди: {content_s[2]}\nЗначение: {content_s[3]}')
-        elif content_s[0] == 'get':
-            get = getData(file, content_s[2])
-            await message.channel.send(f'Файл: {content_s[1]}\nАйди: {content_s[2]}\nЗначение: {get}')
-        elif content_s[0] == 'read':
-            read = readData(file)
-            await message.channel.send(f'Файл: {content_s[1]}\nКонтент: {read}')
-        elif content_s[0] == 'update':
-            updateData(file, content_s[2], content_s[3])
-            await message.channel.send(f'Файл: {content_s[1]}\nАйди: {content_s[2]}\nЗначение: {content_s[3]}')
-        elif content_s[0] == 'reset':
-            resetData(file, content_s[2])
-            await message.channel.send(f'Файл: {content_s[1]}\nАйди: {content_s[2]}')
+async def bank_up(message):
 
-@client.command()
-async def bank_up(message): #обновить
+    user_id = str(message.author.id)
 
-    id_user = str(message.author.id)
+    if not ed.is_item_exist(DB_NAME, user_id, 'currency'):
+        currency = ed.give_item_data(DB_NAME, user_id, 'currency', config['currency'])
+    currency = ed.get_item_data(DB_NAME, user_id, 'currency')
+    
+    if not ed.is_item_exist(DB_NAME, user_id, 'balance'):
+        balance = ed.give_item_data(DB_NAME, user_id, 'balance', config['balance'])
+    balance = ed.get_item_data(DB_NAME, user_id, 'balance')
 
-    print(f'------------------------{id_user}: >bank_up')
+    if not ed.is_item_exist(DB_NAME, user_id, 'bank_limit'):
+        bank_limit = ed.give_item_data(DB_NAME, user_id, 'bank_limit', config['bank_limit'])
+    bank_limit = ed.get_item_data(DB_NAME, user_id, 'bank_limit')
+    
+    if int(balance) >= int(bank_limit) * 2:
 
-    cur = getData(CURRENCY_FILE, id_user) or '$'
-    if not cur: #проверяем наличие в базе данных, если нет - добавляем
-        addData(CURRENCY_FILE, id_user, STARTING_CURRENCY)
-
-    balance = getData(BALANCE_FILE, id_user) or 0
-    if not balance: #проверяем наличие в базе данных, если нет - добавляем
-        addData(BALANCE_FILE, id_user, STARTING_BALANCE)
-
-
-    price = getData(LIMIT_FILE, id_user) or 200
-    if int(balance) >= int(price) * 2:
-
-        sub = int(balance) - int(price) * 2
+        sub = int(balance) - int(bank_limit) * 2
         
-        if getData(LIMIT_FILE, id_user):
-            updateData(BALANCE_FILE, id_user, sub) #забираем деньги
-            updateData(LIMIT_FILE, id_user, int(price) * 2) #обновляем значение
-            text = f'📈Вы успешно повысили свой лимит в банке в 2 раза за {cur}**{price}**'
-        elif not getData(LIMIT_FILE, id_user):
-            updateData(BALANCE_FILE, id_user, sub) #забираем деньги
-            addData(LIMIT_FILE, id_user, int(price) * 2) #обновляем значение
-            text = f'📈Вы успешно повысили свой лимит в банке в 2 раза за {cur}**{price}**'
+        ed.give_item_data(DB_NAME, user_id, 'balance', sub)
+        ed.give_item_data(DB_NAME, user_id, 'bank_limit', int(bank_limit) * 2)
+        text = f'📈 Вы успешно повысили свой лимит в банке в 2 раза за {currency}**{int(bank_limit) * 2}**'
     
     else:
-        text = f'<:error:1001754203565326346> Нехватка средств!\n💸Нужная сумма: {cur}**{price}**'
+        text = f'<a:no:998468646533869658> Нехватка средств!\n💸Нужная сумма: {currency}**{int(bank_limit) * 2}**'
     
     embed1 = discord.Embed(
     title = 'Банк',
@@ -857,152 +848,21 @@ async def bank_up(message): #обновить
     await message.channel.send(embed = embed1)
 
 @client.command()
-async def casino_start(message): #обновить
-
-    id_user = str(message.author.id)
-
-    cur = getData(CURRENCY_FILE, id_user) or '$'
-    if not cur: #проверяем наличие в базе данных, если нет - добавляем
-        addData(CURRENCY_FILE, id_user, STARTING_CURRENCY)
-
-    list_full = ['🍀', '🐉', '🐍', '🐍', '🍎', '🍏', '🥝', '🥝', '🍙', '🍙', '🎩', '🎲', '🧠', '😈', '🎲', '🐙', '🧠', '🍄', '🌵', '🍨', '🧧', '🏮', '🧧', '🎁', '🎉', '🍄', '🔥', '👊', '👊', '🦀', '👊']
-    list = list_full[random.randint(0, 30)] + ' ' + list_full[random.randint(0, 30)] + ' ' + list_full[random.randint(0, 30)] + ' ' + list_full[random.randint(0, 30)] + ' ' + list_full[random.randint(0, 30)] + ' ' + list_full[random.randint(0, 30)]
-    
-    if not getData(CASINO_FILE, 'casino'):
-        addData(CASINO_FILE, 'casino', list)
-    else:
-        updateData(CASINO_FILE, 'casino', list)
-
-    embed1 = discord.Embed(
-    title = 'Лотерея',
-    description = f'🔒Создана комбинация: {list}\n💰Цена билета: **{cur}500**',
-    color = 0xffff00)
-    await message.channel.send(embed = embed1)
-
-@client.command()
-async def casino(message, *, content): #обновить
-
-    id_user = str(message.author.id)
-
-    cur = getData(CURRENCY_FILE, id_user) or '$'
-    if not cur: #проверяем наличие в базе данных, если нет - добавляем
-        addData(CURRENCY_FILE, id_user, STARTING_CURRENCY)
-
-    balance = getData(BALANCE_FILE, id_user) or 0
-    if not balance: #проверяем наличие в базе данных, если нет - добавляем
-        addData(BALANCE_FILE, id_user, STARTING_BALANCE)
-
-    if content == 'view':
-        text = '🔒Общая комбинация: ' + getData(CASINO_FILE, 'casino')
-    elif content == 'buy':
-        price = 500
-        if int(balance) >= int(price):
-            unit = 0
-            list_full = ['🍀', '🐉', '🐍', '🐍', '🍎', '🍏', '🥝', '🥝', '🍙', '🍙', '🎩', '🎲', '🧠', '😈', '🎲', '🐙', '🧠', '🍄', '🌵', '🍨', '🧧', '🏮', '🧧', '🎁', '🎉', '🍄', '🔥', '👊', '👊', '🦀', '👊']
-            list_user = list_full[random.randint(0, 30)] + ' ' + list_full[random.randint(0, 30)] + ' ' + list_full[random.randint(0, 30)] + ' ' + list_full[random.randint(0, 30)] + ' ' + list_full[random.randint(0, 30)] + ' ' + list_full[random.randint(0, 30)]
-            list_user_split = list_user.split(' ')
-            list = getData(CASINO_FILE, 'casino')
-            list_split = list.split(' ')
-            for x in list_user_split:
-                if x in list_split:
-                    unit += 1
-            win = str(int(price) * int(unit) / 2)
-            win = int(win.replace('.0', ''))
-            win = int(win) - int(price)
-            sum = int(balance) + int(win)
-            updateData(BALANCE_FILE, id_user, sum) #добавляем деньги
-            win = int(win) + int(price)
-            text = f'📄Ваш билет: {list_user} \n🔒Общее: {list}\n📥С данного билета вы получили: **{cur}{win}**\n💰Цена билета: **{cur}500**'
-        else:
-            text = f'Нехватка средств! Стоимость билета: **{cur}{price}**'
-
-    embed1 = discord.Embed(
-    title = 'Лотерея',
-    description = text,
-    color = 0xffff00)
-    await message.channel.send(embed = embed1)
-
-@client.command()
 async def shop(message, *, content): #обновить
 
-    id_user = str(message.author.id)
-
-    print(f'------------------------{id_user}: >shop {content}')
-
+    user_id = str(message.author.id)
+    
     content_split = content.split()
 
-    cur = getData(CURRENCY_FILE, id_user) or '$'
-    if not cur: #проверяем наличие в базе данных, если нет - добавляем
-        addData(CURRENCY_FILE, id_user, STARTING_CURRENCY)
+    if not ed.is_item_exist(DB_NAME, user_id, 'balance'):
+        balance = ed.give_item_data(DB_NAME, user_id, 'balance', config['balance'])
+    balance = ed.get_item_data(DB_NAME, user_id, 'balance')
+        
+    if not ed.is_item_exist(DB_NAME, user_id, 'currency'):
+        currency = ed.give_item_data(DB_NAME, user_id, 'currency', config['currency'])
+    currency = ed.get_item_data(DB_NAME, user_id, 'currency')
 
-    balance = getData(BALANCE_FILE, id_user) or 0
-    if not balance: #проверяем наличие в базе данных, если нет - добавляем
-        addData(BALANCE_FILE, id_user, STARTING_BALANCE)
-
-    if content_split[0] == 'buy' and len(content_split) == 2:
-        if content_split[1] == 'badge' and int(balance) >= 1000:
-            sub = int(balance) - 1000
-            updateData(BALANCE_FILE, id_user, sub) #забираем деньги
-
-            badge = getData(BADGE_FILE, id_user)
-            if badge and not '<:medal:1001048705350250516>' in badge:
-                updateData(BADGE_FILE, id_user, badge + ' <:medal:1001048705350250516>')
-            elif not badge:
-                addData(BADGE_FILE, id_user, '<:medal:1001048705350250516>')
-            
-            text = f'Вы успешно купили значок <:medal:1001048705350250516> за {cur}**1000**'
-        else:
-            price = getData(SHOP_FILE, content_split[1].replace('<@&', '').replace('>', '')) or 'None'
-            if price != 'None' and int(balance) >= int(price):
-
-                sub = int(balance) - int(price)
-                id_role = content_split[1].replace('<@&', '').replace('>', '')
-
-                updateData(BALANCE_FILE, id_user, sub) #забираем деньги
-
-                author = message.message.author
-                guild = client.get_guild(int(message.guild.id))
-                role = guild.get_role(int(id_role))
-                await author.add_roles(role) # выдаем автору роль
-                text = f'Вы успешно купили роль **{content_split[1]}** за {cur}**{price}**'
-            else:
-                text = '<:error:1001754203565326346> Нехватка средств или такой роли нет в магазине'
-
-    elif content_split[0] == 'add' and len(content_split) == 3 and message.author.guild_permissions.administrator and int(content_split[2]) >= 0:
-        id_role = content_split[1].replace('<@&', '').replace('>', '')
-        shop = getData(SHOP_FILE, id_role) or 'None'
-        if shop != 'None':
-            updateData(SHOP_FILE, id_role, content_split[2]) #убираем из инвентаря
-            text = f'Вы успешно заменили цену в магазине на роль {content_split[1]} на {cur}**{content_split[2]}**'
-        elif shop == 'None':
-            addData(SHOP_FILE, id_role, content_split[2])
-            text = f'Вы успешно добавили в магазин роль {content_split[1]} за {cur}**{content_split[2]}**'
-
-    elif content_split[0] == 'reset' and message.author.guild_permissions.administrator:
-        with open(SHOP_FILE, 'w') as f:
-            json.dump('', f)
-            text = 'Магазин был сброшен!'
-
-    elif content_split[0] == 'view':
-        shop = readData(SHOP_FILE) or 'Пусто'
-        if shop != 'Пусто':
-            text = ''
-            shop_s = shop.split('\n')
-            for x in shop_s:
-                if x != '':
-                    x_s = x.split('|')
-
-                    guild = client.get_guild(int(message.guild.id))
-                    role_c = guild.get_role(int(x_s[0]))
-
-                    if role_c:
-                        role = '<@&' + x_s[0] + '>'
-                        price = cur + '**' + x_s[1] + '**'
-                        text = text + '\n' + role + ' - ' + price
-            text = text + f'\n\n-----**Коллекция**-----\n***Монарх*** - <:medal:1001048705350250516>\nСтоимость: {cur}**1000**\n Для покупки введите вместо роли - `badge`'
-
-    else:
-        text = '<:error:1001754203565326346> Проверьте написание команды!'
+    text = '***ИДЕТ ОБНОВЛЕНИЕ 2.0***'
 
     embed1 = discord.Embed(
     title = 'Офицальный магазин',
@@ -1112,8 +972,8 @@ async def top(message, *, content): #обновить
 @client.command()
 async def news(message):
     version = '2.0.0'
-    when = '09.01.2024'
-    text = f'**Версия**: *v.{version}*\n**Дата обновления**: {when}\n**ВАЖНО:**\n- Начат перенос проекта под новые системы хранения данных и синхронизации'
+    when = '??.??.2024'
+    text = f'**Версия**: *v.{version}*\n**Дата обновления**: {when}\n**Изменения:**\n- ???'
     embed1 = discord.Embed(
     title = 'Обновления',
     description = text,
@@ -1122,7 +982,7 @@ async def news(message):
 
 client.remove_command('help')
 @client.command()
-async def help(message):
+async def help(message): #обновить
     text = '**💰 Базовая экономика**\n`>bal`, `>bonus`, `>deposit <count>`, `>withdraw <count>`, `>pay <@user> <count>`, `>bank_up`, `>hack <@user>`, `>hack_up <hacks/protects>`, `>shop <buy/add/reset/view> (price)`\n**🏢 Корпорация**\n`>inc_create <name>`, `>inc_info`, `>inc_up <ad/build>`, `>inc_inv`, `>set_work <name/_leave_>`, `>inc_market <buy/sell> <count> <name>`, `>inc_stocks <name>`, `>inc_store`, `>inc_take <count>`\n**💾 Кастомизация**\n`>badge`, `>set_currency <number>`'
 
     embed1 = discord.Embed(
@@ -1139,50 +999,50 @@ async def info(message): #обновить
     color = 0xffff00)
     await message.channel.send(embed = embed1)
 
-#@client.event
-#async def on_command_error(message, error):  
+@client.event
+async def on_command_error(message, error):  
 
-    #if isinstance(error, commands.MissingRequiredArgument):
-    #    embed1 = discord.Embed(
-    #    title = 'Ошибка',
-    #    description = f'<:error:1001754203565326346> Проверьте написание команды или запрошенные ею аргументы! (в команде `>help`, то что `<`в скобочках`>`)',
-    #    color = 0xffff00)
-    #    await message.channel.send(embed = embed1)
+    if isinstance(error, commands.MissingRequiredArgument):
+        embed1 = discord.Embed(
+        title = 'Ошибка',
+        description = f'<:error:1001754203565326346> Проверьте написание команды или запрошенные ею аргументы! (в команде `>help`, то что `<`в скобочках`>`)',
+        color = 0xffff00)
+        await message.channel.send(embed = embed1)
 
-    #    user = await client.fetch_user(user_id=986313671661727744)
-    #    await user.send(error)
-
-
-    #elif isinstance(error, commands.errors.CommandInvokeError):    
-    #    embed1 = discord.Embed(
-    #    title = 'Ошибка',
-    #    description = f'<:error:1001754203565326346> Отсутствие данных',
-    #    color = 0xffff00)
-    #    await message.channel.send(embed = embed1)
-
-    #    user = await client.fetch_user(user_id=986313671661727744)
-    #    await user.send(error)
-
-    #elif isinstance(error, commands.CommandNotFound):
-    #    embed1 = discord.Embed(
-    #    title = 'Ошибка',
-    #    description = f'<:error:1001754203565326346> Такой команды **не существует**, проверьте в `>help`!',
-    #    color = 0xffff00)
-    #    await message.channel.send(embed = embed1)
-
-    #    user = await client.fetch_user(user_id=986313671661727744)
-    #    await user.send(error)
+        user = await client.fetch_user(user_id=986313671661727744)
+        await user.send(error)
 
 
-    #else:
-    #    embed1 = discord.Embed(
-    #    title = 'Неизвестная ошибка',
-    #    description = f'<:error:1001754203565326346> {error}',
-    #    color = 0xffff00)
-    #    await message.channel.send(embed = embed1)
+    elif isinstance(error, commands.errors.CommandInvokeError):    
+        embed1 = discord.Embed(
+        title = 'Ошибка',
+        description = f'<:error:1001754203565326346> Отсутствие данных',
+        color = 0xffff00)
+        await message.channel.send(embed = embed1)
 
-    #    user = await client.fetch_user(user_id=986313671661727744)
-    #    await user.send(error)
+        user = await client.fetch_user(user_id=986313671661727744)
+        await user.send(error)
+
+    elif isinstance(error, commands.CommandNotFound):
+        embed1 = discord.Embed(
+        title = 'Ошибка',
+        description = f'<:error:1001754203565326346> Такой команды **не существует**, проверьте в `>help`!',
+        color = 0xffff00)
+        await message.channel.send(embed = embed1)
+
+        user = await client.fetch_user(user_id=986313671661727744)
+        await user.send(error)
+
+
+    else:
+        embed1 = discord.Embed(
+        title = 'Неизвестная ошибка',
+        description = f'<:error:1001754203565326346> {error}',
+        color = 0xffff00)
+        await message.channel.send(embed = embed1)
+
+        user = await client.fetch_user(user_id=986313671661727744)
+        await user.send(error)
 
 @client.event
 async def on_message(message): #обновить
