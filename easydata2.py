@@ -54,7 +54,7 @@ def give_item_data(f_name: str, id: str, item: str, value: Any) -> None:
     
     user_data = data.get(id, None)
 
-    if user_data == None:
+    if user_data == None and id not in data:
         give_id_data(f_name, id, {})
         user_data = {}
 

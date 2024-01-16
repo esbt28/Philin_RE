@@ -640,7 +640,7 @@ async def inc_store(message, *, content = 'None'):
     
     text = f'<a:no:998468646533869658> Ошибка взаимодействия\nВозможные причины:\n- Данного параметра не существует\n- Данного бизнеса не существует\n- Данное число не доступно\n- Нехватка средств'
     
-    if content_split == ['None']:
+    if content_split[0] == 'None':
         
         text = ''
     
@@ -848,7 +848,7 @@ async def bank_up(message):
     await message.channel.send(embed = embed1)
 
 @client.command()
-async def shop(message, *, content): #обновить
+async def shop(message, *, content = 'None'): #обновить
 
     user_id = str(message.author.id)
     
@@ -861,9 +861,41 @@ async def shop(message, *, content): #обновить
     if not ed.is_item_exist(DB_NAME, user_id, 'currency'):
         currency = ed.give_item_data(DB_NAME, user_id, 'currency', config['currency'])
     currency = ed.get_item_data(DB_NAME, user_id, 'currency')
+    
+    guild = client.get_guild(int(message.guild.id))
 
-    text = '***ИДЕТ ОБНОВЛЕНИЕ 2.0***'
+    if content_split[0] == 'add' and message.author.guild_permissions.administrator and len(content_split) == 3:
+        
+        role_id = ''
+        for l in content_split[1]:
+            if l.isdigit():
+                role_id = role_id + str(l)
+        
+        role = guild.get_role(int(role_id))
+        
+        if role and content_split[2].isdigit():
+            
+            ed.give_item_data(DB_NAME, str(message.guild.id), str(role_id), content_split[2])
+            
+            text = f'<a:yes:998468643627212860> **Вы успешно выставили роль** {content_split[1]} за **{currency}{content_split[2]}**'
 
+    elif content_split[0] == 'None':
+        text = ''
+        shop = ed.get_id_data(DB_NAME, str(message.guild.id))
+        
+        for i in shop:
+            
+            text = text + f'<@&{i}>: **{currency}{shop[i]}**\n'
+        
+    elif content_split[0] == 'reset' and message.author.guild_permissions.administrator:
+        
+        ed.delete_id_data(DB_NAME, str(message.guild.id))
+        
+        text = f'<a:yes:998468643627212860> **Вы успешно сбросили магазин сервера**'
+        
+    elif content_split[0] == 'buy':
+        
+    
     embed1 = discord.Embed(
     title = 'Офицальный магазин',
     description = text,
@@ -1005,7 +1037,7 @@ async def on_command_error(message, error):
     if isinstance(error, commands.MissingRequiredArgument):
         embed1 = discord.Embed(
         title = 'Ошибка',
-        description = f'<:error:1001754203565326346> Проверьте написание команды или запрошенные ею аргументы! (в команде `>help`, то что `<`в скобочках`>`)',
+        description = f'<a:no:998468646533869658> Проверьте написание команды или запрошенные ею аргументы! (в команде `>help`, то что `<`в скобочках`>`)',
         color = 0xffff00)
         await message.channel.send(embed = embed1)
 
@@ -1016,7 +1048,7 @@ async def on_command_error(message, error):
     elif isinstance(error, commands.errors.CommandInvokeError):    
         embed1 = discord.Embed(
         title = 'Ошибка',
-        description = f'<:error:1001754203565326346> Отсутствие данных',
+        description = f'<a:no:998468646533869658> Отсутствие данных',
         color = 0xffff00)
         await message.channel.send(embed = embed1)
 
@@ -1026,7 +1058,7 @@ async def on_command_error(message, error):
     elif isinstance(error, commands.CommandNotFound):
         embed1 = discord.Embed(
         title = 'Ошибка',
-        description = f'<:error:1001754203565326346> Такой команды **не существует**, проверьте в `>help`!',
+        description = f'<a:no:998468646533869658> Такой команды **не существует**, проверьте в `>help`!',
         color = 0xffff00)
         await message.channel.send(embed = embed1)
 
@@ -1037,7 +1069,7 @@ async def on_command_error(message, error):
     else:
         embed1 = discord.Embed(
         title = 'Неизвестная ошибка',
-        description = f'<:error:1001754203565326346> {error}',
+        description = f'<a:no:998468646533869658> {error}',
         color = 0xffff00)
         await message.channel.send(embed = embed1)
 

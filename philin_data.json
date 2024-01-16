@@ -1,15 +1,15 @@
 {
     "986313671661727744": {
-        "balance": 10191,
+        "balance": 10614,
         "currency": "<:vboost:1001054517669924904>",
         "bank_balance": 0,
         "bank_limit": 200,
         "work": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442",
         "skill_hack": 1,
         "skill_protect": 1,
-        "business": "flbedo",
+        "business": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442",
         "inventory": {
-            "flbedo": 8
+            "flbedo": 0
         },
         "badges": "<:developer:1000463385558786079> <:vboost:1001054517669924904>"
     },
@@ -30,12 +30,13 @@
     "flbedo": {
         "ad": 1,
         "building": 1,
-        "grafic": "\ud83d\udd3a",
-        "balance": 696,
+        "grafic": "\ud83d\udd3b",
+        "balance": 5849,
         "workers": "0",
-        "stocks": 8,
+        "stocks": 0,
         "max_stocks": 20,
         "stock_percent": 2,
-        "stock_price": 12
+        "stock_price": 116,
+        "max_workers": 100
     }
 }
