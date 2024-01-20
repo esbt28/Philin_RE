@@ -893,7 +893,32 @@ async def shop(message, *, content = 'None'): #обновить
         
         text = f'<a:yes:998468643627212860> **Вы успешно сбросили магазин сервера**'
         
-    elif content_split[0] == 'buy':
+    elif content_split[0] == 'buy' and len(content_split) == 2:
+        
+        role_id = ''
+        for l in content_split[1]:
+            if l.isdigit():
+                role_id = role_id + str(l)
+                
+        if ed.is_item_exist(DB_NAME, str(message.guild.id), role_id):
+            
+            role = guild.get_role(int(role_id))
+            
+            if balance > int(ed.get_item_data(DB_NAME, str(message.guild.id), role_id)):
+                price = int(ed.get_item_data(DB_NAME, str(message.guild.id), role_id))
+                
+                sub = balance - price
+                
+                ed.give_item_data(DB_NAME, user_id, 'balance', sub)
+                
+                await message.author.add_roles(role)
+                
+                text = f'<a:yes:998468643627212860> **Вы успешно купили** роль {content_split[1]}'
+        else:
+            text = f'<a:no:998468646533869658> Ошибка взаимодействия\nВозможные причины:\n- Нехватка средств\n- Данная роль не продается'
+                
+        
+        
         
     
     embed1 = discord.Embed(
@@ -902,104 +927,6 @@ async def shop(message, *, content = 'None'): #обновить
     color = 0xffff00)
     await message.channel.send(embed = embed1)
 
-@client.command()
-async def top(message, *, content): #обновить
-    id_user = message.author.id
-    print('+')
-
-    text = readData(BALANCE_FILE)  
-
-    embed1 = discord.Embed(
-    title = 'Обновления',
-    description = text,
-    color = 0xffff00)
-    await message.channel.send(embed = embed1)
-
-
-    id_user = str(message.author.id)
-
-    print(f'------------------------{id_user}: >shop {content}')
-
-    content_split = content.split()
-
-    cur = getData(CURRENCY_FILE, id_user) or '$'
-    if not cur: #проверяем наличие в базе данных, если нет - добавляем
-        addData(CURRENCY_FILE, id_user, STARTING_CURRENCY)
-
-    balance = getData(BALANCE_FILE, id_user) or 0
-    if not balance: #проверяем наличие в базе данных, если нет - добавляем
-        addData(BALANCE_FILE, id_user, STARTING_BALANCE)
-
-    if content_split[0] == 'buy' and len(content_split) == 2:
-        if content_split[1] == 'badge' and int(balance) >= 1000:
-            sub = int(balance) - 1000
-            updateData(BALANCE_FILE, id_user, sub) #забираем деньги
-
-            badge = getData(BADGE_FILE, id_user)
-            if badge and not '<:medal:1001048705350250516>' in badge:
-                updateData(BADGE_FILE, id_user, badge + ' <:medal:1001048705350250516>')
-            elif not badge:
-                addData(BADGE_FILE, id_user, '<:medal:1001048705350250516>')
-            
-            text = f'Вы успешно купили значок <:medal:1001048705350250516> за {cur}**1000**'
-        else:
-            price = getData(SHOP_FILE, content_split[1].replace('<@&', '').replace('>', '')) or 'None'
-            if price != 'None' and int(balance) >= int(price):
-
-                sub = int(balance) - int(price)
-                id_role = content_split[1].replace('<@&', '').replace('>', '')
-
-                updateData(BALANCE_FILE, id_user, sub) #забираем деньги
-
-                author = message.message.author
-                guild = client.get_guild(int(message.guild.id))
-                role = guild.get_role(int(id_role))
-                await author.add_roles(role) # выдаем автору роль
-                text = f'Вы успешно купили роль **{content_split[1]}** за {cur}**{price}**'
-            else:
-                text = '<:error:1001754203565326346> Нехватка средств или такой роли нет в магазине'
-
-    elif content_split[0] == 'add' and len(content_split) == 3 and message.author.guild_permissions.administrator and int(content_split[2]) >= 0:
-        id_role = content_split[1].replace('<@&', '').replace('>', '')
-        shop = getData(SHOP_FILE, id_role) or 'None'
-        if shop != 'None':
-            updateData(SHOP_FILE, id_role, content_split[2]) #убираем из инвентаря
-            text = f'Вы успешно заменили цену в магазине на роль {content_split[1]} на {cur}**{content_split[2]}**'
-        elif shop == 'None':
-            addData(SHOP_FILE, id_role, content_split[2])
-            text = f'Вы успешно добавили в магазин роль {content_split[1]} за {cur}**{content_split[2]}**'
-
-    elif content_split[0] == 'reset' and message.author.guild_permissions.administrator:
-        with open(SHOP_FILE, 'w') as f:
-            json.dump('', f)
-            text = 'Магазин был сброшен!'
-
-    elif content_split[0] == 'view':
-        shop = readData(SHOP_FILE) or 'Пусто'
-        if shop != 'Пусто':
-            text = ''
-            shop_s = shop.split('\n')
-            for x in shop_s:
-                if x != '':
-                    x_s = x.split('|')
-
-                    guild = client.get_guild(int(message.guild.id))
-                    role_c = guild.get_role(int(x_s[0]))
-
-                    if role_c:
-                        role = '<@&' + x_s[0] + '>'
-                        price = cur + '**' + x_s[1] + '**'
-                        text = text + '\n' + role + ' - ' + price
-            text = text + f'\n\n-----**Коллекция**-----\n***Монарх*** - <:medal:1001048705350250516>\nСтоимость: {cur}**1000**\n Для покупки введите вместо роли - `badge`'
-
-    else:
-        text = '<:error:1001754203565326346> Проверьте написание команды!'
-
-    embed1 = discord.Embed(
-    title = 'Офицальный магазин',
-    description = text,
-    color = 0xffff00)
-    await message.channel.send(embed = embed1)
 
 @client.command()
 async def news(message):
@@ -1014,17 +941,7 @@ async def news(message):
 
 client.remove_command('help')
 @client.command()
-async def help(message): #обновить
-    text = '**💰 Базовая экономика**\n`>bal`, `>bonus`, `>deposit <count>`, `>withdraw <count>`, `>pay <@user> <count>`, `>bank_up`, `>hack <@user>`, `>hack_up <hacks/protects>`, `>shop <buy/add/reset/view> (price)`\n**🏢 Корпорация**\n`>inc_create <name>`, `>inc_info`, `>inc_up <ad/build>`, `>inc_inv`, `>set_work <name/_leave_>`, `>inc_market <buy/sell> <count> <name>`, `>inc_stocks <name>`, `>inc_store`, `>inc_take <count>`\n**💾 Кастомизация**\n`>badge`, `>set_currency <number>`'
-
-    embed1 = discord.Embed(
-    title = 'Помощь',
-    description = text,
-    color = 0xffff00)
-    await message.channel.send(embed = embed1)
-
-@client.command()
-async def info(message): #обновить
+async def help(message):
     embed1 = discord.Embed(
     title = 'Помощь',
     description = 'Документация: [Click](https://docs.google.com/document/d/1QI_4Ye-nl4sGJo4N6G45699uZ6UwIhgSeuf_cWwejFw/edit?usp=sharing)',
@@ -1083,5 +1000,30 @@ async def on_message(message): #обновить
 
     global messages
     messages += 1
+    
+    if message % 10 == 0:
+        for i in ed.ids:
+            if ed.is_item_exist(DB_NAME, i, 'grafic'):
+                stock_price = int(ed.get_item_data(DB_NAME, i, 'balance')) * int(ed.get_item_data(DB_NAME, i, 'stock_percent')) // 100
+                ed.give_item_data(DB_NAME, i, 'stock_price', stock_price)
+    
+    if message % 3 == 0:
+        work = ed.get_item_data(DB_NAME, user_id, 'work')
+        business = ed.get_item_data(DB_NAME, user_id, 'business')
+        if work != 'Отсутствует' and business == 'Отсутствует':
+            inc_ad = int(ed.get_item_data(DB_NAME, work, 'ad'))
+            balance = int(ed.get_item_data(DB_NAME, user_id, 'balance'))
+            
+            sum = balance + inc_ad
+            ed.give_item_data(DB_NAME, user_id, 'balance', sum)
+            
+        elif business != 'Отсутствует':
+            
+            inc_ad = int(ed.get_item_data(DB_NAME, business, 'ad'))
+            inc_building = int(ed.get_item_data(DB_NAME, business, 'building'))
+            balance = int(ed.get_item_data(DB_NAME, user_id, 'balance'))
+            
+            sum = balance + inc_ad
+            ed.give_item_data(DB_NAME, user_id, 'balance', sum)
 
 client.run("OTk4MjU2NTAyOTQwOTA1NTQy.GzpghI.K0CKOr8m2YOpPqI8IlA4gJP8ZT0J2UAVLsW2hY", bot=True) #запускаем бота
