@@ -1026,4 +1026,4 @@ async def on_message(message): #обновить
             sum = balance + inc_ad
             ed.give_item_data(DB_NAME, user_id, 'balance', sum)
 
-client.run("OTk4MjU2NTAyOTQwOTA1NTQy.GzpghI.K0CKOr8m2YOpPqI8IlA4gJP8ZT0J2UAVLsW2hY", bot=True) #запускаем бота
+client.run("TOKEN", bot=True) #запускаем бота
